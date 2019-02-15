@@ -25,7 +25,7 @@
     return [fileManager copyItemAtPath:src toPath:dest error:nil];
 }
 
-- (void) migrateLocalStorage
+- (BOOL) migrateLocalStorage
 {
     // Migrate UIWebView local storage files to WKWebView. Adapted from
     // https://github.com/Telerik-Verified-Plugins/WKWebView/blob/master/src/ios/MyMainViewController.m
@@ -54,16 +54,64 @@
     // Only copy data if no existing localstorage data exists yet for wkwebview
     if (![[NSFileManager defaultManager] fileExistsAtPath:target]) {
         NSLog(@"No existing localstorage data found for WKWebView. Migrating data from UIWebView");
-        [self copyFrom:original to:target];
-        [self copyFrom:[original stringByAppendingString:@"-shm"] to:[target stringByAppendingString:@"-shm"]];
-        [self copyFrom:[original stringByAppendingString:@"-wal"] to:[target stringByAppendingString:@"-wal"]];
+        BOOL success1 = [self copyFrom:original to:target];
+        BOOL success2 = [self copyFrom:[original stringByAppendingString:@"-shm"] to:[target stringByAppendingString:@"-shm"]];
+        BOOL success3 = [self copyFrom:[original stringByAppendingString:@"-wal"] to:[target stringByAppendingString:@"-wal"]];
+        return success1 && success2 && success3;
+    }
+    else {
+        return NO;
     }
 }
 
-- (void)pluginInitialize
+// Added
+- (BOOL) migrateIndexedDB
 {
-    [self migrateLocalStorage];
+    // Migrate UIWebView indexed db files to WKWebView.
+
+    NSString* appLibraryFolder = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString* original;
+
+    if ([[NSFileManager defaultManager] fileExistsAtPath:[appLibraryFolder stringByAppendingPathComponent:@"WebKit/LocalStorage/___IndexedDB/file__0"]]) {
+        original = [appLibraryFolder stringByAppendingPathComponent:@"WebKit/LocalStorage"];
+    } else {
+        original = [appLibraryFolder stringByAppendingPathComponent:@"Caches"];
+    }
+
+    original = [original stringByAppendingPathComponent:@"___IndexedDB/file__0"];
+
+    NSString* target = [[NSString alloc] initWithString: [appLibraryFolder stringByAppendingPathComponent:@"WebKit"]];
+
+#if TARGET_IPHONE_SIMULATOR
+    // the simulutor squeezes the bundle id into the path
+    NSString* bundleIdentifier = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+    target = [target stringByAppendingPathComponent:bundleIdentifier];
+#endif
+
+    target = [target stringByAppendingPathComponent:@"WebsiteData/IndexedDB/file__0"];
+
+    // Only copy data if no existing indexed db data exists yet for wkwebview
+    if (![[NSFileManager defaultManager] fileExistsAtPath:target]) {
+        NSLog(@"No existing indexed db data found for WKWebView. Migrating data from UIWebView");
+        BOOL success = [self copyFrom:original to:target];
+        return success;
+    }
+    else {
+        return NO;
+    }
 }
 
+- (void) pluginInitialize
+{
+    [self migrateLocalStorage];
+    BOOL lsResult = [self migrateLocalStorage];
+    BOOL idbResult = [self migrateIndexedDB];
+    if (lsResult) {
+        NSLog(@"Successfully migrated localstorage");
+    }
+    if (idbResult) {
+        NSLog(@"Successfully migrated indexed db");
+    }
+}
 
 @end
