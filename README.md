@@ -2,7 +2,7 @@
 
 This plugin can be used in conjunction with
 [cordova-plugin-wkwebview-engine](https://github.com/apache/cordova-plugin-wkwebview-engine)
-to persist LocalStorage data & indexed db when migrating from `UIWebView` to `WKWebView`. All related
+to persist LocalStorage data and indexed db when migrating from `UIWebView` to `WKWebView`. All related
 files will be copied over automatically during startup so the user can simply pick up where they
 left of.
 
